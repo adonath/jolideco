@@ -10,6 +10,7 @@ from astropy.table import Table
 from astropy.utils import lazyproperty
 from astropy.visualization import simple_norm
 from packaging import version
+from torch.optim.lr_scheduler import ExponentialLR
 from tqdm.auto import tqdm
 
 from .loss import PoissonLoss, PriorLoss, TotalLoss
@@ -213,6 +214,8 @@ class MAPDeconvolver:
 
         disable = not self.display_progress
 
+        scheduler = ExponentialLR(optimizer, gamma=0.999)
+
         with tqdm(total=self.n_epochs * len(datasets), disable=disable) as pbar:
             for epoch in range(self.n_epochs):
                 pbar.set_description(f"Epoch {epoch + 1}")
@@ -234,8 +237,14 @@ class MAPDeconvolver:
 
                     loss_total.backward()
                     optimizer.step()
+
+                    for _ in fluxes:
+                        std = torch.sqrt(_)
+                        _.add_(torch.random.normal(mean=0, std=std))
+
                     pbar.update(1)
 
+                scheduler.step()
                 components.eval()
 
                 if self.checkpoint_path:
