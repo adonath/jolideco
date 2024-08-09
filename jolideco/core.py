@@ -67,6 +67,8 @@ class MAPDeconvolver:
         Whether to display a progress bar
     optimizer : {"adam", "sgd"}
         Optimizer to use
+    gamma: float
+        Learning rate decay factor
     checkpoint_path : str
         Path to save checkpoints
     """
@@ -85,6 +87,7 @@ class MAPDeconvolver:
         device=TORCH_DEFAULT_DEVICE,
         display_progress=True,
         optimizer="adam",
+        gamma=0.999,
         checkpoint_path=None,
     ):
         self.n_epochs = n_epochs
@@ -109,6 +112,7 @@ class MAPDeconvolver:
             )
 
         self.optimizer = optimizer
+        self.gamma = gamma
 
         if checkpoint_path is not None:
             checkpoint_path = Path(checkpoint_path)
@@ -214,7 +218,7 @@ class MAPDeconvolver:
 
         disable = not self.display_progress
 
-        scheduler = ExponentialLR(optimizer, gamma=0.999)
+        scheduler = ExponentialLR(optimizer, gamma=self.gamma)
 
         with tqdm(total=self.n_epochs * len(datasets), disable=disable) as pbar:
             for epoch in range(self.n_epochs):
@@ -237,14 +241,23 @@ class MAPDeconvolver:
 
                     loss_total.backward()
                     optimizer.step()
-
-                    for _ in fluxes:
-                        std = torch.sqrt(_)
-                        _.add_(torch.random.normal(mean=0, std=std))
-
+                    scheduler.step()
                     pbar.update(1)
 
-                scheduler.step()
+                    eps = 1e-7
+                    with torch.no_grad():
+                        for _, component in components.items():
+                            flux = component.flux_upsampled
+                            lr = scheduler.get_last_lr()
+                            noise = torch.clamp_min(
+                                torch.sqrt(2.0 * torch.tensor(lr))
+                                * torch.normal(0, torch.sqrt(flux))
+                                / (flux + eps),
+                                -(1 - eps),
+                            )
+                            log_update = torch.log(1 + noise)
+                            component._flux_upsampled.add_(log_update)
+
                 components.eval()
 
                 if self.checkpoint_path:
