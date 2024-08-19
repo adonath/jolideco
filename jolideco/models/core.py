@@ -396,8 +396,12 @@ class SpatialFluxComponent(nn.Module):
                 f"Flux tensor must be four dimensional. Got {flux_upsampled.ndim}"
             )
 
+        norm = torch.sum(flux_upsampled)
+
         if use_log_flux:
-            flux_upsampled = torch.log(flux_upsampled)
+            flux_upsampled = torch.log(flux_upsampled / norm)
+
+        self.norm = nn.Parameter(norm)
 
         self._flux_upsampled = nn.Parameter(flux_upsampled)
         self._flux_upsampled_error = flux_upsampled_error
@@ -591,7 +595,7 @@ class SpatialFluxComponent(nn.Module):
         if self.mask is not None:
             flux = flux * self.mask
 
-        return flux
+        return self.norm * flux / torch.sum(flux)
 
     @property
     def flux(self) -> torch.Tensor:
