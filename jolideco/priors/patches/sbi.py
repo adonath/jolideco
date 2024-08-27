@@ -10,11 +10,11 @@ class SBIPatchTransformerConfig:
     """Patch Transformer configuration"""
 
     patch_size: int = 8
-    projection_dim: int = 48
+    projection_dim: int = 96
     num_heads: int = 4
     transformer_layers: int = 4
     mlp_head_units: tuple[int, int] = (256, 128)
-    dropout_rate: float = 0.1
+    dropout_rate: float = 0.3
     num_classes: int = 2
 
     @property
@@ -282,7 +282,6 @@ class SBIPatchTransformerModel(nn.Module):
         x = self.layers(x)
         x = self.norm(x)
         x = self.dropout(x)
-        x = x.mean(dim=1)
         x = self.mlp_head(x)
         x = self.output(x)
         return x
