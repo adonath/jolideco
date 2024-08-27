@@ -4,9 +4,14 @@ from dataclasses import dataclass
 
 from torch import nn
 
+__all__ = [
+    "SBIPatchTransformerModelConfig",
+    "SBIPatchTransformerModel",
+]
+
 
 @dataclass
-class SBIPatchTransformerConfig:
+class SBIPatchTransformerModelConfig:
     """Patch Transformer configuration"""
 
     patch_size: int = 8
