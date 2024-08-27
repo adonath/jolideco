@@ -16,6 +16,7 @@ __all__ = [
     "get_default_generator",
     "rescale_image_torch",
     "shift_image_torch",
+    "uniform_torch",
 ]
 
 TORCH_DEFAULT_DEVICE = "cpu"
